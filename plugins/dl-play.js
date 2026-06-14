@@ -4,9 +4,21 @@ import fs from 'fs'
 import { pipeline } from 'stream'
 import { promisify } from 'util'
 import os from 'os'
+import ytdl from '@distube/ytdl-core'
 
 const streamPipeline = promisify(pipeline)
 const tmpDir = os.tmpdir()
+
+// Load cookies for YouTube
+let agent
+try {
+  if (fs.existsSync('Assets/cookies.json')) {
+    const cookies = JSON.parse(fs.readFileSync('Assets/cookies.json', 'utf-8'))
+    agent = ytdl.createAgent(cookies)
+  }
+} catch (e) {
+  console.error('Error loading YouTube cookies:', e)
+}
 
 const handler = async (m, { conn, command, text, args, usedPrefix }) => {
   if (!text) throw `give a text to search Example: *${usedPrefix + command}* sefali odia song`
@@ -51,15 +63,16 @@ handler.before = async (m, { conn }) => {
     try {
       await conn.reply(m.chat, `⏳ *Downloading* "${songTitle}", please wait...`, m)
       
-      const apiUrl = `https://ironman.koyeb.app/ironman/dl/yta?url=${encodeURIComponent(selectedUrl)}`
-      
       const filePath = `${tmpDir}/${safeTitle}.mp3`
       
-      const response = await fetch(apiUrl)
-      if (!response.ok) throw new Error(`API responded with status: ${response.status}`)
+      const stream = ytdl(selectedUrl, {
+        quality: 'highestaudio',
+        filter: 'audioonly',
+        agent
+      })
       
       const fileStream = fs.createWriteStream(filePath)
-      await streamPipeline(response.body, fileStream)
+      await streamPipeline(stream, fileStream)
       
       await conn.reply(m.chat, `✅ *Download complete!* Sending the audio now...`, m)
       
