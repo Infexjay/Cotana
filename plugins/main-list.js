@@ -109,27 +109,13 @@ let handler = async (m, { conn, usedPrefix: _p, args, command }) => {
       text = text.replace(new RegExp(key, 'g'), value)
     }
     
-    const githubUrl = 'https://github.com/cotana322'
     const logo = './Assets/Cotana.png'
-    
-    const urls = [
-      ['GitHub Profile', githubUrl]
-    ]
-    
-    const buttons = [
-      ['Speed', '.ping']
-    ]
-    
-    await conn.sendButton(
-      m.chat,
-      formatResponse(text.trim()),
-      `© ${persona.organization} | 2025`,
-      logo,
-      buttons,
-      null,
-      urls,
-      m
-    );
+    await sendListMessage(
+      conn,
+      m,
+      formatResponse(`${text.trim()}\n\n.ping - Speed\nhttps://github.com/cotana322`),
+      logo
+    )
     
   } catch (e) {
     console.error('Main error in list command:', e);
@@ -156,3 +142,12 @@ handler.command = /^(list|listcmd|cmdlist|listgp|listgroup|listtools?|listdl|lis
 handler.desc = 'Lists available commands by category. Use .listgp, .listtools, .listdl, .listmain, .listowner, or .list <category>.'
 
 export default handler
+
+async function sendListMessage(conn, m, text, logo) {
+  try {
+    await conn.sendMessage(m.chat, { image: { url: logo }, caption: text }, { quoted: m })
+  } catch (error) {
+    console.error('List media send failed, falling back to text:', error)
+    await conn.sendMessage(m.chat, { text }, { quoted: m })
+  }
+}
