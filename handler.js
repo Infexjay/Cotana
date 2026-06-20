@@ -108,6 +108,7 @@ export async function handler(chatUpdate) {
         if (!user.registered) {
           if (!('name' in user)) user.name = m.name
           if (!('age' in user)) user.age = -1
+          if (!('adultAgreed' in user)) user.adultAgreed = false
           if (!isNumber(user.regTime)) user.regTime = -1
         }
         if (!isNumber(user.afk)) user.afk = -1
@@ -119,6 +120,7 @@ export async function handler(chatUpdate) {
           registered: false,
           name: m.name,
           age: -1,
+          adultAgreed: false,
           regTime: -1,
           afk: -1,
           afkReason: '',
@@ -867,8 +869,8 @@ global.dfail = (type, m, conn) => {
     private: `*${emoji.private} PRIVATE CHANNEL ONLY*\n\n${userTag} Shift to a *Private Chat* to execute this.`,
     admin: `*${emoji.admin} ADMIN CLEARANCE REQUIRED*\n\n${userTag} Protocol failure. Only *Group Admins* can trigger this.`,
     botAdmin: `*${emoji.botAdmin} BOT ADMIN RIGHTS REQUIRED*\n\n${userTag} I require *Admin* status to execute this directive!`,
-    unreg: `*${emoji.unreg} REGISTRATION REQUIRED*\n\n${userTag} Identity not found in database. Register now:\n\n*#register name.age*`,
-    nsfw: `*${emoji.nsfw} CONTENT RESTRICTION*\n\n${userTag} NSFW protocols are offline. Admin activation required.`,
+    unreg: `*${emoji.unreg} REGISTRATION REQUIRED*\n\n${userTag} Identity not found in database. Register now:\n\n*.reg name.18 agree*`,
+    nsfw: `*${emoji.nsfw} CONTENT RESTRICTION*\n\n${userTag} NSFW protocols are offline. Bot owner activation required in this group.`,
     restrict: `*${persona.messages.restriction}*`,
   }[type]
   if (msg) return m.reply(formatResponse(msg))

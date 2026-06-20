@@ -1,6 +1,6 @@
 import fetch from 'node-fetch'
 import { persona, formatResponse } from '../lib/responses.js'
-import { isSessionActive } from '../lib/sessions.js'
+import { isSessionActive, setupTimeout, startSession } from '../lib/sessions.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -80,6 +80,14 @@ let handler = async (m, {
     return m.reply(formatResponse(`Ugh, I need an API key to talk! Set one of these env vars: ${API_KEY_ENV_NAMES.join(', ')}.`))
   }
 
+  if (command === 'cotana') {
+    startSession(m.chat, m.sender)
+    setupTimeout(m.chat, conn)
+    if (!chatText || chatText.trim().toLowerCase() === 'cotana') {
+      return m.reply(formatResponse(persona.messages.sessionStart))
+    }
+  }
+
   if (!chatText && command !== 'resetai') {
     return m.reply(formatResponse(`What do you want, darling? 💅✨\n\nExample: *${usedPrefix}chat* Hey you...`))
   }
@@ -90,7 +98,7 @@ let handler = async (m, {
     delete conversationHistory[userId]
     return m.reply(formatResponse("Fine, I forgot everything. We're starting fresh, but don't be boring this time! 😈🍭"))
   }
-  
+
   try {
     await conn.sendPresenceUpdate('composing', m.chat)
     await m.react?.('😈')
