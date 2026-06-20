@@ -62,7 +62,8 @@ figlet(
 import rateLimit from 'express-rate-limit'
 const app = express()
 app.set('trust proxy', 1)
-const port = process.env.PORT || 5000
+const port = Number(process.env.PORT || 5000)
+const healthPort = Number(process.env.HEALTH_PORT || process.env.SERVER_PORT || 8000)
 const keepAliveUrl = resolveKeepAliveUrl()
 
 const __filename = fileURLToPath(import.meta.url)
@@ -216,6 +217,12 @@ if (isMainModule) {
     setInterval(requestBotStats, 30000)
     startKeepAlive()
   })
+
+  if (healthPort && healthPort !== port) {
+    app.listen(healthPort, () => {
+      console.log(chalk.green(`Health check listener running on port ${healthPort}`))
+    })
+  }
 }
 
 
