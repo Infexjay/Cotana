@@ -1,5 +1,5 @@
 import fetch from 'node-fetch'
-import { persona, formatResponse } from '../lib/responses.js'
+import { persona, formatResponse, formatStatus, formatUsage } from '../lib/responses.js'
 import { isSessionActive, setupTimeout, startSession } from '../lib/sessions.js'
 import dotenv from 'dotenv'
 
@@ -77,7 +77,9 @@ let handler = async (m, {
   const apiKey = getApiKey()
   
   if (!apiKey) {
-    return m.reply(formatResponse(`Ugh, I need an API key to talk! Set one of these env vars: ${API_KEY_ENV_NAMES.join(', ')}.`))
+    return m.reply(formatStatus('AI setup needed', 'Add a Gemini API key to the server environment.', [
+      API_KEY_ENV_NAMES.join(', ')
+    ]))
   }
 
   if (command === 'cotana') {
@@ -89,14 +91,14 @@ let handler = async (m, {
   }
 
   if (!chatText && command !== 'resetai') {
-    return m.reply(formatResponse(`What do you want, darling? 💅✨\n\nExample: *${usedPrefix}chat* Hey you...`))
+    return m.reply(formatUsage(`${usedPrefix}chat <message>`, `${usedPrefix}chat tell me something`))
   }
   
   const userId = m.sender
 
   if (command === 'resetai') {
     delete conversationHistory[userId]
-    return m.reply(formatResponse("Fine, I forgot everything. We're starting fresh, but don't be boring this time! 😈🍭"))
+    return m.reply(formatStatus('AI memory reset', 'This chat history is clear.'))
   }
 
   try {
@@ -203,7 +205,7 @@ let handler = async (m, {
   } catch (error) {
     console.error('AI Chat Error:', error)
     await m.react?.('❌')
-    m.reply(formatResponse(`Oops! 🐍 ${error.message}`))
+    m.reply(formatStatus('AI error', error.message))
   }
 }
 

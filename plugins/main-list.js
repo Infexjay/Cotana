@@ -27,13 +27,13 @@ const categoryAliases = {
 
 const defaultMenu = {
   before: `
-Hii darling! 😈 Ready to see what I can do? 
-Try to keep up, okay? 🌪️🍭
+Choose a category or scan everything below.
+Use .listdl, .listgp, .listtools, .listmain, or .listowner.
 
 %readmore`.trimStart(),
-  header: '✨🍒 *%category* 🍒✨',
-  body: '┃ 👉 *%cmd*',
-  footer: '🌸💅 *══════════════* 💅🌸\n',
+  header: '\n✧ %category',
+  body: '  %cmd',
+  footer: '\n',
   after: `© ${persona.organization}`,
 }
 
@@ -113,13 +113,16 @@ let handler = async (m, { conn, usedPrefix: _p, args, command }) => {
     await sendListMessage(
       conn,
       m,
-      formatResponse(`${text.trim()}\n\n.ping - Speed\nhttps://github.com/cotana322`),
+      formatResponse(`${text.trim()}\n\n.ping  response speed\n.menu  home panel`, {
+        title: tag && tags[tag] ? `${tags[tag]} commands` : 'Command directory',
+        footer: persona.organization
+      }),
       logo
     )
     
   } catch (e) {
     console.error('Main error in list command:', e);
-    m.reply(`Error generating command list: ${e.message}`)
+    m.reply(formatResponse(`Could not build the command list.\n${e.message}`, { title: 'List error' }))
   }
 }
 

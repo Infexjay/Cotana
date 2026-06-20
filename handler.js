@@ -862,15 +862,15 @@ global.dfail = (type, m, conn) => {
   }
 
   const msg = {
-    owner: `*${emoji.owner} OWNER PRIVILEGE REQUIRED*\n\n${userTag} Access denied. This protocol is reserved for the *Bot Owner*!`,
-    moderator: `*${emoji.moderator} MODERATOR CLEARANCE REQUIRED*\n\n${userTag} Authorization failure. *Moderators* only.`,
-    premium: `*${emoji.premium} PREMIUM ACCESS REQUIRED*\n\n${userTag} This feature requires *Premium* status. Upgrade your clearance.`,
-    group: `*${emoji.group} GROUP PROTOCOL ONLY*\n\n${userTag} This command is restricted to *Group Chats*!`,
-    private: `*${emoji.private} PRIVATE CHANNEL ONLY*\n\n${userTag} Shift to a *Private Chat* to execute this.`,
-    admin: `*${emoji.admin} ADMIN CLEARANCE REQUIRED*\n\n${userTag} Protocol failure. Only *Group Admins* can trigger this.`,
-    botAdmin: `*${emoji.botAdmin} BOT ADMIN RIGHTS REQUIRED*\n\n${userTag} I require *Admin* status to execute this directive!`,
-    unreg: `*${emoji.unreg} REGISTRATION REQUIRED*\n\n${userTag} Identity not found in database. Register now:\n\n*.reg name.18 agree*`,
-    nsfw: `*${emoji.nsfw} CONTENT RESTRICTION*\n\n${userTag} NSFW protocols are offline. Bot owner activation required in this group.`,
+    owner: `${emoji.owner} Owner access required\n${userTag}, this command is reserved for the bot owner.`,
+    moderator: `${emoji.moderator} Moderator access required\n${userTag}, only moderators can use this.`,
+    premium: `${emoji.premium} Premium access required\n${userTag}, this feature needs premium status.`,
+    group: `${emoji.group} Group chat required\n${userTag}, use this inside a group.`,
+    private: `${emoji.private} Private chat required\n${userTag}, send this in my DM.`,
+    admin: `${emoji.admin} Admin access required\n${userTag}, only group admins can run this.`,
+    botAdmin: `${emoji.botAdmin} Bot admin needed\n${userTag}, make me admin first.`,
+    unreg: `${emoji.unreg} Registration required\n${userTag}, create your profile first.\n\n.reg name.18 agree`,
+    nsfw: `${emoji.nsfw} NSFW is locked\n${userTag}, the bot owner must enable it in this group.`,
     restrict: `*${persona.messages.restriction}*`,
   }[type]
   if (msg) return m.reply(formatResponse(msg))

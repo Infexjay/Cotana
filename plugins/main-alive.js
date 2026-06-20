@@ -1,11 +1,14 @@
-import { persona, formatResponse } from '../lib/responses.js'
+import { formatStatus } from '../lib/responses.js'
 
 let handler = async (m, { conn, text, usedPrefix, command }) => {
   let name = m.pushName || conn.getName(m.sender)
   var vn = 'https://cdn.jsdelivr.net/gh/cotana322/cotana-BOT@main/Assets/mp3/Alive.mp3'
   let img = './Assets/Cotana.png'
   
-  let str = `Hii ${name}! 💋 Did you miss me? \n\nI'm alive and extra nutty today! 😈✨ Don't keep me waiting too long or I might get into trouble... 🌪️🍭`
+  let str = formatStatus('Cotana status', `Online and listening, ${name}.`, [
+    'Dashboard: active',
+    'Messages: ready'
+  ])
 
   await conn.sendMessage(m.chat, {
     audio: { url: vn },
@@ -25,7 +28,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
     },
   }, { quoted: m })
   
-  await m.reply(formatResponse(str))
+  await m.reply(str)
 }
 
 handler.help = ['alive']

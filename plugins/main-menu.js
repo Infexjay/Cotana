@@ -1,6 +1,6 @@
 import moment from 'moment-timezone'
 import { getPlatform } from '../lib/helper.js'
-import { persona, formatResponse } from '../lib/responses.js'
+import { persona, formatResponse, formatSection } from '../lib/responses.js'
 
 let handler = async (m, { conn, usedPrefix, command }) => {
   try {
@@ -20,35 +20,40 @@ let handler = async (m, { conn, usedPrefix, command }) => {
     let taguser = '@' + m.sender.split('@s.whatsapp.net')[0]
     const logo = './Assets/Cotana.png' 
 
-    let str = `
-Hii ${taguser}! 💋
-${greeting}
-
-I'm *${persona.name}*, your favorite nutty girl! 😈✨ 
-Ready to play? Or are you just going to stare at my menu? 🍭🔥
-
-✨ *MY INFO* ✨
-✧ Name: ${persona.name}
-✧ Creator: ${persona.creator}
-✧ Status: Super Busy being hot 💅
-✧ Uptime: ${uptime}
-✧ Fans: ${totaluser} (${rtotalreg} registered)
-
-Type *${usedPrefix}list* to see everything I can do... if you think you can handle it! 🌪️🍒
-${readMore}
-`
+    let str = [
+      `${greeting}, ${taguser}`,
+      '',
+      `I'm ${persona.name}, your animegirl bot with a sharp mouth and a soft spot for chaos.`,
+      '',
+      formatSection('Profile', [
+        { icon: '✦', label: 'Name', value: persona.profileTitle },
+        { icon: '✦', label: 'Vibe', value: 'sassy animegirl assistant' },
+        { icon: '✦', label: 'Master', value: persona.creator },
+        { icon: '✦', label: 'Studio', value: persona.organization },
+        { icon: '✦', label: 'Mood', value: 'online, playful, watching the chat' },
+        { icon: '✦', label: 'Uptime', value: uptime },
+        { icon: '✦', label: 'Fans', value: `${totaluser} total, ${rtotalreg} registered` }
+      ]),
+      '',
+      formatSection('Quick actions', [
+        `${usedPrefix}list    view all commands`,
+        `${usedPrefix}ping    check response speed`,
+        `${usedPrefix}alive   check bot status`
+      ]),
+      readMore
+    ].join('\n')
 
     await sendMenuMessage(
       conn,
       m,
-      formatResponse(`${str.trim()}\n\n${usedPrefix}list - Commands\n${usedPrefix}ping - Speed\n\n© ${persona.organization} | 2025`),
+      formatResponse(str.trim(), { title: `${persona.profileTitle} menu`, footer: `© ${persona.organization}` }),
       logo
     )
     
     m.react('😈')
   } catch (e) {
     console.error(e)
-    await m.reply(formatResponse("Ugh, even my menu is having a moment. Try again later, darling! 💅✨"))
+    await m.reply(formatResponse("Menu could not load right now. Try again in a moment.", { title: 'Menu error' }))
   }
 }
 

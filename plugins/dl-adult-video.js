@@ -5,6 +5,7 @@ import {
   searchPornhub,
   searchXVideos
 } from '../lib/adult-video-downloader.js'
+import { formatResponse, formatSelectionList, formatStatus, formatUsage } from '../lib/responses.js'
 
 const tmpDir = os.tmpdir()
 const SESSION_KEY = 'cotanaAdultVideo'
@@ -24,25 +25,31 @@ const sources = {
 }
 
 const handler = async (m, { conn, command, text, usedPrefix }) => {
-  if (!text) throw `Example: *${usedPrefix + command}* search words`
+  if (!text) throw formatUsage(`${usedPrefix + command} <search text>`, `${usedPrefix + command} search words`)
   if (!canUseAdultCommands(m, conn)) return
 
   const source = sources[command.toLowerCase()]
   if (!source) return
 
   conn[SESSION_KEY] = conn[SESSION_KEY] || {}
-  await conn.reply(m.chat, `⏳ Searching ${source.label}...`, m)
+  await conn.reply(m.chat, formatStatus(`${source.label} search`, 'Looking for matching videos...'), m)
 
   const results = await source.search(text, 10)
-  if (!results.length) throw `No ${source.label} videos found for that search.`
+  if (!results.length) throw formatStatus(`${source.label} search`, 'No videos matched that search.')
 
-  const list = results
-    .map((item, index) => `*${index + 1}.* ${item.title}`)
-    .join('\n\n')
+  const list = formatSelectionList(results)
 
   const { key } = await conn.reply(
     m.chat,
-    `✦ ──『 *COTANA ${source.label.toUpperCase()}* 』── ⚝\n\nReply with a number to download the video.\n\n${list}`,
+    formatResponse(
+      [
+        'Reply with a number to download the video.',
+        '18+ access is logged by registration agreement.',
+        '',
+        list
+      ].join('\n'),
+      { title: `${source.label} selector`, footer: 'Selection expires in 150s' }
+    ),
     m
   )
 
@@ -72,14 +79,14 @@ handler.before = async (m, { conn }) => {
 
   const inputNumber = Number(m.text.trim())
   if (!Number.isInteger(inputNumber) || inputNumber < 1 || inputNumber > session.results.length) {
-    return m.reply(`Invalid number. Pick a number from 1 to ${session.results.length}.`)
+    return m.reply(formatStatus('Invalid selection', `Pick a number from 1 to ${session.results.length}.`))
   }
 
   clearTimeout(session.timeout)
   const selected = session.results[inputNumber - 1]
 
   try {
-    await conn.reply(m.chat, `⏳ Downloading "${selected.title}"...`, m)
+    await conn.reply(m.chat, formatStatus('Preparing video', `Downloading ${selected.title}...`), m)
     const video = await downloadAdultVideo(selected.url, tmpDir, session.source.label)
 
     await conn.sendFile(
@@ -104,7 +111,7 @@ handler.before = async (m, { conn }) => {
     }, 10_000)
   } catch (error) {
     console.error(`${session.source.label} download error:`, error)
-    await conn.reply(m.chat, `❎ Error downloading video: ${error.message}`, m)
+    await conn.reply(m.chat, formatStatus('Download failed', error.message), m)
   } finally {
     delete conn[SESSION_KEY][m.sender]
   }
@@ -128,7 +135,9 @@ function canUseAdultCommands(m, conn) {
   }
 
   if (Number(user.age) < 18 || !user.adultAgreed) {
-    m.reply('🔞 You must be 18+ and agree during registration before using this command.\n\nUse: *.reg name.18 agree*')
+    m.reply(formatStatus('18+ agreement required', 'Register first and confirm that you are 18 or older.', [
+      'Use .reg name.18 agree'
+    ]))
     return false
   }
 

@@ -1,26 +1,24 @@
-import fetch from 'node-fetch'
 import ytSearch from 'yt-search'
 import fs from 'fs'
 import os from 'os'
 import { downloadYouTubeAudio } from '../lib/youtube-downloader.js'
+import { formatResponse, formatSelectionList, formatStatus, formatUsage } from '../lib/responses.js'
 
 const tmpDir = os.tmpdir()
 
 const handler = async (m, { conn, command, text, args, usedPrefix }) => {
-  if (!text) throw `give a text to search Example: *${usedPrefix + command}* sefali odia song`
+  if (!text) throw formatUsage(`${usedPrefix + command} <song name>`, `${usedPrefix + command} sad song`)
   conn.cotanaPLAY = conn.cotanaPLAY ? conn.cotanaPLAY : {}
-  await conn.reply(m.chat, '⏳ *Searching...* Please wait while I find your music.', m)
+  await conn.reply(m.chat, formatStatus('Music search', 'Looking for matching tracks...'), m)
   const result = await searchAndDownloadMusic(text)
-  const infoText = `✦ ──『 *cotana PLAYER* 』── ⚝ \n\n [ ⭐ Reply the number of the desired search result to get the Audio]. \n\n`
-
-  const orderedLinks = result.allLinks.map((link, index) => {
-    const sectionNumber = index + 1
-    const { title, url } = link
-    return `*${sectionNumber}.* ${title}`
-  })
-
-  const orderedLinksText = orderedLinks.join('\n\n')
-  const fullText = `${infoText}\n\n${orderedLinksText}`
+  const fullText = formatResponse(
+    [
+      'Reply with a number to download the audio.',
+      '',
+      formatSelectionList(result.allLinks)
+    ].join('\n'),
+    { title: 'Cotana player', footer: 'Selection expires in 150s' }
+  )
   const { key } = await conn.reply(m.chat, fullText, m)
   conn.cotanaPLAY[m.sender] = {
     result,
@@ -46,11 +44,13 @@ handler.before = async (m, { conn }) => {
     const { url: selectedUrl, title: songTitle } = result.allLinks[inputNumber - 1]
     
     try {
-      await conn.reply(m.chat, `⏳ *Downloading* "${songTitle}", please wait...`, m)
+      await conn.reply(m.chat, formatStatus('Preparing audio', `Downloading ${songTitle}...`), m)
       
       const audio = await downloadYouTubeAudio(selectedUrl, tmpDir)
       
-      await conn.reply(m.chat, `✅ *Download complete!* Sending the audio now...`, m)
+      await conn.reply(m.chat, formatStatus('Audio ready', 'Sending the MP3 now.', [
+        audio.fileName
+      ]), m)
       
       const doc = {
         audio: {
@@ -76,12 +76,12 @@ handler.before = async (m, { conn }) => {
       
     } catch (error) {
       console.error('Download error:', error)
-      conn.reply(m.chat, `❌ Error downloading audio: ${error.message}. Please try again later.`, m)
+      conn.reply(m.chat, formatStatus('Download failed', error.message), m)
     } finally {
       delete conn.cotanaPLAY[m.sender]
     }
   } else {
-    m.reply('Invalid sequence number. Please select a number between 1 and ' + result.allLinks.length)
+    m.reply(formatStatus('Invalid selection', `Pick a number from 1 to ${result.allLinks.length}.`))
   }
 }
 
