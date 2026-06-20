@@ -19,7 +19,6 @@ const mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017'
 const phoneNumber = process.env.PHONE_NUMBER
 const keepAliveIntervalMs = Number(process.env.KEEP_ALIVE_INTERVAL_MS || 4 * 60 * 1000)
 let pendingPairingRequest = null
-const mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017'
 const pairingState = {
   pendingRequest: null,
   pairingCode: null,
@@ -269,8 +268,6 @@ function startKeepAlive() {
   console.log(chalk.green(`Keep-alive worker active: pinging ${normalizeKeepAliveUrl(keepAliveUrl)} every ${Math.round(intervalMs / 1000)}s`))
   pingKeepAlive()
   setInterval(pingKeepAlive, intervalMs)
-}
-  })
 }
 
 function startBot() {
