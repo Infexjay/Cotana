@@ -231,11 +231,17 @@ export async function handler(chatUpdate) {
     // Owner/mod and group context checks
     const senderJid = normalizeIdentifier(m.sender)
     const botJid = normalizeIdentifier(conn.decodeJid(global.conn.user?.id || global.conn.user?.jid || conn.user?.id || conn.user?.jid || ''))
-    const ownerJids = [botJid, ...global.owner.map(([number]) => toUserJid(number))].filter(Boolean)
-    const modJids = [...global.mods, ...global.owner.map(([number]) => number)].map(toUserJid).filter(Boolean)
+
+    // Normalize global.owner handling
+    const ownerNumbers = (global.owner || []).map(o => Array.isArray(o) ? o[0] : o).filter(Boolean)
+    const modNumbers = (global.mods || []).concat(ownerNumbers)
+
+    const ownerJids = [botJid, ...ownerNumbers.map(toUserJid)].filter(Boolean)
+    const modJids = modNumbers.map(toUserJid).filter(Boolean)
+
     const isROwner = ownerJids.some(owner => sameUser(owner, senderJid))
-    const isOwner = isROwner || m.fromMe
-    const isMods = isOwner || modJids.some(mod => sameUser(mod, senderJid))
+    const isOwner = m.isOwner = isROwner || m.fromMe
+    const isMods = m.isMods = isOwner || modJids.some(mod => sameUser(mod, senderJid))
 
     if (process.env.MODE && process.env.MODE.toLowerCase() === 'private' && !(isROwner || isOwner))
       return
@@ -251,8 +257,8 @@ export async function handler(chatUpdate) {
     const user = (m.isGroup ? findParticipant(participants, senderJid) : {}) || {}
     const bot = (m.isGroup ? findParticipant(participants, botJid || conn.user?.jid || conn.user?.id) : {}) || {}
     const isRAdmin = user?.admin === 'superadmin' || false
-    const isAdmin = isOwner || isRAdmin || isParticipantAdmin(user)
-    const isBotAdmin = isParticipantAdmin(bot)
+    const isAdmin = m.isAdmin = isOwner || isRAdmin || isParticipantAdmin(user)
+    const isBotAdmin = m.isBotAdmin = isParticipantAdmin(bot)
 
     // Route to AI Chat when a Cotana session is active or the chat-level chatbot toggle is enabled.
     const shouldUseAIChat = isSessionActive(m.chat) || global.db.data.chats[m.chat]?.chatbot
