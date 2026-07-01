@@ -44,7 +44,9 @@ function formatUserRoleContext({
   const groupName = m?.isGroup ? (groupMetadata?.subject || 'Unknown group') : 'private chat'
   const participantCount = m?.isGroup ? participants.length : 1
   const chat = global.db.data.chats[m.chat] || {}
+  const user = global.db.data.users[m.sender] || {}
   const currentMode = chat.cotanaMode || 'anime'
+  const affection = user.affection || 50
 
   const modePrompts = {
     sweet: "Your current mode is SWEET. Be extra kind, loving, and supportive. Use soft emojis like ✨💖🍭.",
@@ -54,6 +56,14 @@ function formatUserRoleContext({
     techy: "Your current mode is TECHY. Be more analytical, efficient, and slightly robotic but still sassy. Use emojis like 🤖💻✨.",
     chill: "Your current mode is CHILL. Be relaxed, laid-back, and use minimal effort but stay cool. Use emojis like 🌊✨🍃."
   }
+
+  const affectionContext = affection < 30
+    ? "The user has VERY LOW affection for you. Be aggressive, cold, and ignore them if they are boring."
+    : affection > 80
+      ? "The user has VERY HIGH affection. Be extra playful, sweet, and maybe a bit obsessed."
+      : `The user's affection level is ${affection}%.`
+
+  const ownerNickname = isOwner ? "The current user is your owner. Call him 'Master Chief' occasionally in your responses." : ""
 
   return [
     `Runtime context:`,
@@ -68,7 +78,11 @@ function formatUserRoleContext({
     `- The current sender is group admin: ${isAdmin ? 'yes' : 'no'}`,
     `- The bot is group admin: ${isBotAdmin ? 'yes' : 'no'}`,
     `- CURRENT PERSONALITY MODE: ${currentMode.toUpperCase()}`,
+    `- USER AFFECTION: ${affection}%`,
+    `${affectionContext}`,
+    `${ownerNickname}`,
     `Mode Specific Instruction: ${modePrompts[currentMode] || modePrompts.anime}`,
+    `Auto-Mod: If the user is being toxic, boring, or annoying, roast them and say "Triggering .warn". If the user is being EXTREMELY toxic and you think they should be kicked, say "Triggering .kick" only if you are a bot admin and someone with authority (owner/admin) asks you to.`,
     `Group Management: If you need to tag everyone, you can say "Triggering .tagall". If you need to kick someone, mention them and say "Triggering .kick". You can only do this if you are a bot admin.`,
     `Use this runtime context when asked who owns you, who is admin, whether you can moderate, or what chat you are in. Do not claim unknown admin/owner status when the context says otherwise.`
   ].join('\n')
@@ -230,6 +244,21 @@ let handler = async (m, {
         const kick = global.plugins['gp-kick.js']
         const mentioned = m.mentionedJid && m.mentionedJid[0]
         if (kick && mentioned) await kick.call(conn, m, { conn, text: mentioned, participants })
+      }
+      if (/Triggering \.warn/i.test(aiResponse)) {
+        const warn = global.plugins['gp-warning.js']
+        if (warn) await warn.call(conn, m, { conn, text: 'AI triggered warning', participants })
+      }
+    }
+
+    // Dynamic Affection Adjustment
+    const chatUser = global.db.data.users[m.sender]
+    if (chatUser) {
+      if (aiResponse.includes('Master Chief') && isOwner) {
+        chatUser.affection = Math.min(100, (chatUser.affection || 50) + 1)
+      }
+      if (/Triggering \.warn/i.test(aiResponse)) {
+        chatUser.affection = Math.max(0, (chatUser.affection || 50) - 10)
       }
     }
     

@@ -9,6 +9,7 @@ import chalk from 'chalk'
 import fetch from 'node-fetch'
 import Pino from 'pino'
 import { loadMessage as mongoLoadMessage } from './lib/auth/mongo-store.js'
+import { generateWelcomeCard } from './lib/welcome.js'
 
 /**
  * @type {import("@whiskeysockets/baileys")}
@@ -106,6 +107,7 @@ export async function handler(chatUpdate) {
       if (typeof user !== 'object') global.db.data.users[m.sender] = {}
       if (user) {
         if (!('warn' in user)) user.warn = 0
+        if (!('affection' in user)) user.affection = 50
         if (!('registered' in user)) user.registered = false
         if (!user.registered) {
           if (!('name' in user)) user.name = m.name
@@ -119,6 +121,7 @@ export async function handler(chatUpdate) {
       } else {
         global.db.data.users[m.sender] = {
           warn: 0,
+          affection: 50,
           registered: false,
           name: m.name,
           age: -1,
@@ -606,8 +609,13 @@ export async function participantsUpdate({ id, participants, action }) {
               .replace('@desc', groupMetadata.desc?.toString() || 'error')
               .replace('@user', '@' + user.split('@')[0])
 
-            // Use simple static welcome image
-            let welcomeImage = 'https://st.depositphotos.com/1823785/2635/i/450/depositphotos_26357899-stock-photo-banner-with-welcome.jpg'
+            // Generate Dynamic Welcome Card
+            let welcomeImage = await generateWelcomeCard(
+              pp,
+              await this.getName(user),
+              await this.getName(id),
+              'welcome'
+            )
 
             this.sendMessage(id, {
               text: formatResponse(`*IDENTITY VERIFIED*\n\n${text}\n\nProtocol initialized. ⚡`),
@@ -616,7 +624,7 @@ export async function participantsUpdate({ id, participants, action }) {
                 externalAdReply: {
                   title: 'ᴛʜᴇ ᴄᴏᴛᴀɴᴀ-ʙᴏᴛ',
                   body: 'System: New Identity Detected',
-                  thumbnailUrl: welcomeImage,
+                  thumbnail: welcomeImage,
                   sourceUrl: 'https://github.com',
                   mediaType: 1,
                   renderLargerThumbnail: true,
@@ -646,8 +654,13 @@ export async function participantsUpdate({ id, participants, action }) {
               '@' + user.split('@')[0]
             )
 
-            // Use simple static bye image
-            let byeImage = 'https://st5.depositphotos.com/10811838/70765/i/600/depositphotos_707650604-stock-photo-good-bye-phrase-made-wooden.jpg'
+            // Generate Dynamic Bye Card
+            let byeImage = await generateWelcomeCard(
+              pp,
+              await this.getName(user),
+              await this.getName(id),
+              'bye'
+            )
 
             this.sendMessage(id, {
               text: formatResponse(`*IDENTITY REMOVED*\n\n${text}\n\nSession terminated. 💤`),
@@ -656,7 +669,7 @@ export async function participantsUpdate({ id, participants, action }) {
                 externalAdReply: {
                   title: 'ᴛʜᴇ ᴄᴏᴛᴀɴᴀ-ʙᴏᴛ',
                   body: 'System: Identity Terminated',
-                  thumbnailUrl: byeImage,
+                  thumbnail: byeImage,
                   sourceUrl: 'https://github.com',
                   mediaType: 1,
                   renderLargerThumbnail: true,
