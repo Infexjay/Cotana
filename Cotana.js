@@ -419,14 +419,6 @@ global.requestPairingCode = async function requestPairingCode(phoneNumber) {
 
 conn.logger.info('\nWaiting For Login\n')
 
-if (!conn.authState.creds.registered && pairingPhoneNumber) {
-  setTimeout(() => {
-    requestPairingCode('socket-ready').catch(error => {
-      console.error('Error requesting initial pairing code:', error)
-    })
-  }, 3000)
-}
-
 if (!opts['test']) {
   if (global.db) {
     setInterval(async () => {
