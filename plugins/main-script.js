@@ -1,6 +1,7 @@
 import { promises } from 'fs'
 import { join } from 'path'
 import axios from 'axios'
+import { formatResponse } from '../lib/responses.js'
 
 let handler = async function (m, { conn, __dirname }) {
   const githubRepoURL = 'https://github.com/cotana322/cotana-BOT'

@@ -43,6 +43,17 @@ function formatUserRoleContext({
   const chatType = m?.isGroup ? 'group' : 'private'
   const groupName = m?.isGroup ? (groupMetadata?.subject || 'Unknown group') : 'private chat'
   const participantCount = m?.isGroup ? participants.length : 1
+  const chat = global.db.data.chats[m.chat] || {}
+  const currentMode = chat.cotanaMode || 'anime'
+
+  const modePrompts = {
+    sweet: "Your current mode is SWEET. Be extra kind, loving, and supportive. Use soft emojis like ✨💖🍭.",
+    warmth: "Your current mode is WARMTH. Be cozy, caring, and comforting. Use emojis like ☕🍒✨.",
+    aggressive: "Your current mode is AGGRESSIVE. Be mean, sharp, and teasing in a harsher way. Use emojis like 😈🔥🐍.",
+    anime: "Your current mode is ANIME GIRL VIBE. Be your usual nutty, naughty, and teasing anime self. Use emojis like 🌪️🍭😈.",
+    techy: "Your current mode is TECHY. Be more analytical, efficient, and slightly robotic but still sassy. Use emojis like 🤖💻✨.",
+    chill: "Your current mode is CHILL. Be relaxed, laid-back, and use minimal effort but stay cool. Use emojis like 🌊✨🍃."
+  }
 
   return [
     `Runtime context:`,
@@ -56,6 +67,9 @@ function formatUserRoleContext({
     `- The current sender is a moderator: ${isMods ? 'yes' : 'no'}`,
     `- The current sender is group admin: ${isAdmin ? 'yes' : 'no'}`,
     `- The bot is group admin: ${isBotAdmin ? 'yes' : 'no'}`,
+    `- CURRENT PERSONALITY MODE: ${currentMode.toUpperCase()}`,
+    `Mode Specific Instruction: ${modePrompts[currentMode] || modePrompts.anime}`,
+    `Group Management: If you need to tag everyone, you can say "Triggering .tagall". If you need to kick someone, mention them and say "Triggering .kick". You can only do this if you are a bot admin.`,
     `Use this runtime context when asked who owns you, who is admin, whether you can moderate, or what chat you are in. Do not claim unknown admin/owner status when the context says otherwise.`
   ].join('\n')
 }
@@ -205,6 +219,19 @@ let handler = async (m, {
       text: formatResponse(finalResponse),
       mentions: [m.sender]
     }, { quoted: m })
+
+    // Command Execution Simulation
+    if (isBotAdmin && (isOwner || isAdmin)) {
+      if (/Triggering \.tagall/i.test(aiResponse)) {
+        const tagall = global.plugins['gp-tagall.js']
+        if (tagall) await tagall.call(conn, m, { conn, text: 'AI triggered tagall', participants, groupMetadata })
+      }
+      if (/Triggering \.kick/i.test(aiResponse)) {
+        const kick = global.plugins['gp-kick.js']
+        const mentioned = m.mentionedJid && m.mentionedJid[0]
+        if (kick && mentioned) await kick.call(conn, m, { conn, text: mentioned, participants })
+      }
+    }
     
     await m.react?.('🍒')
     
@@ -222,6 +249,8 @@ handler.command = /^(ai|chat|resetai|cotana|endai|stopai)$/i
 // Custom matching for sessions
 handler.before = async function (m, { conn }) {
   if (isSessionActive(m.chat) && !m.isBaileys && !m.fromMe && !global.prefix.test(m.text)) {
+    const chat = global.db.data.chats[m.chat] || {}
+    if (chat.cotanaStop && !m.isOwner) return false
     const text = m.text
     if (!text) return false
     await handler(m, { conn, text, usedPrefix: '', command: 'ai' })
