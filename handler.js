@@ -9,6 +9,7 @@ import chalk from 'chalk'
 import fetch from 'node-fetch'
 import Pino from 'pino'
 import { loadMessage as mongoLoadMessage } from './lib/auth/mongo-store.js'
+import { generateWelcomeCard } from './lib/welcome.js'
 
 /**
  * @type {import("@whiskeysockets/baileys")}
@@ -106,6 +107,7 @@ export async function handler(chatUpdate) {
       if (typeof user !== 'object') global.db.data.users[m.sender] = {}
       if (user) {
         if (!('warn' in user)) user.warn = 0
+        if (!('affection' in user)) user.affection = 50
         if (!('registered' in user)) user.registered = false
         if (!user.registered) {
           if (!('name' in user)) user.name = m.name
@@ -119,6 +121,7 @@ export async function handler(chatUpdate) {
       } else {
         global.db.data.users[m.sender] = {
           warn: 0,
+          affection: 50,
           registered: false,
           name: m.name,
           age: -1,
@@ -149,6 +152,8 @@ export async function handler(chatUpdate) {
         if (!('sWelcome' in chat)) chat.sWelcome = ''
         if (!('welcome' in chat)) chat.welcome = false
         if (!('chatbot' in chat)) chat.chatbot = false
+        if (!('cotanaStop' in chat)) chat.cotanaStop = false
+        if (!('cotanaMode' in chat)) chat.cotanaMode = 'anime'
       } else {
         global.db.data.chats[m.chat] = {
           antiDelete: true,
@@ -164,6 +169,8 @@ export async function handler(chatUpdate) {
           sWelcome: '',
           welcome: false,
           chatbot: false,
+          cotanaStop: false,
+          cotanaMode: 'anime',
         }
       }
       if (typeof settings !== 'object') global.db.data.settings[this.user.jid] = {}
@@ -260,8 +267,26 @@ export async function handler(chatUpdate) {
     const isAdmin = m.isAdmin = isOwner || isRAdmin || isParticipantAdmin(user)
     const isBotAdmin = m.isBotAdmin = isParticipantAdmin(bot)
 
+    // Anti View-Once Logic
+    const viewOnceM = m.message?.viewOnceMessageV2?.message || m.message?.viewOnceMessage?.message
+    if (viewOnceM) {
+      const type = Object.keys(viewOnceM)[0]
+      const media = await m.download()
+      const sender = m.sender.split('@')[0]
+      const chatName = m.isGroup ? `group: ${groupMetadata.subject || m.chat}` : 'private chat'
+      const caption = `*[ ANTI VIEW-ONCE DETECTED ]*\n\n👤 *Sender:* @${sender}\n💬 *Chat:* ${chatName}\n📄 *Type:* ${type}`.trim()
+
+      for (let [jid] of global.owner.filter(([number, _, isDeveloper]) => isDeveloper && number)) {
+        const ownerJid = toUserJid(jid)
+        await this.sendFile(ownerJid, media, '', caption, null, false, { mentions: [m.sender] })
+      }
+    }
+
     // Route to AI Chat when a Cotana session is active or the chat-level chatbot toggle is enabled.
-    const shouldUseAIChat = isSessionActive(m.chat) || global.db.data.chats[m.chat]?.chatbot
+    const chat = global.db.data.chats[m.chat] || {}
+    let shouldUseAIChat = isSessionActive(m.chat) || chat?.chatbot
+    if (chat?.cotanaStop && !isOwner) shouldUseAIChat = false
+
     if (shouldUseAIChat && !isCommand && !m.fromMe && m.text) {
       const aiChatPlugin = global.plugins['ai-chat.js']
       const aiChatHandler = aiChatPlugin?.default || aiChatPlugin
@@ -320,12 +345,11 @@ export async function handler(chatUpdate) {
           for (let [jid] of global.owner.filter(
             ([number, _, isDeveloper]) => isDeveloper && number
           )) {
-            let data = (await conn.onWhatsApp(jid))[0] || {}
-            if (data.exists)
-              m.reply(
-                `*🗂️ Plugin:* ${name}\n*👤 Sender:* ${m.sender}\n*💬 Chat:* ${m.chat}\n*💻 Command:* ${m.text}\n\n\${format(e)}`.trim(),
-                data.jid
-              )
+            const ownerJid = toUserJid(jid)
+            m.reply(
+              `*🗂️ Plugin:* ${name}\n*👤 Sender:* ${m.sender}\n*💬 Chat:* ${m.chat}\n*💻 Command:* ${m.text}\n\n${format(e)}`.trim(),
+              ownerJid
+            )
           }
         }
       }
@@ -483,12 +507,11 @@ export async function handler(chatUpdate) {
               for (let [jid] of global.owner.filter(
                 ([number, _, isDeveloper]) => isDeveloper && number
               )) {
-                let data = (await this.onWhatsApp(jid))[0] || {}
-                if (data.exists)
-                  return m.reply(
-                    `*🗂️ Plugin:* ${m.plugin}\n*👤 Sender:* ${m.sender}\n*💬 Chat:* ${m.chat}\n*💻 Command:* ${usedPrefix}${command} ${args.join(' ')}\n📄 *Error Logs:*\n\n${text}`.trim(),
-                    data.jid
-                  )
+                const ownerJid = toUserJid(jid)
+                return m.reply(
+                  `*🗂️ Plugin:* ${m.plugin}\n*👤 Sender:* ${m.sender}\n*💬 Chat:* ${m.chat}\n*💻 Command:* ${usedPrefix}${command} ${args.join(' ')}\n📄 *Error Logs:*\n\n${text}`.trim(),
+                  ownerJid
+                )
               }
             m.reply(text)
           }
@@ -586,8 +609,13 @@ export async function participantsUpdate({ id, participants, action }) {
               .replace('@desc', groupMetadata.desc?.toString() || 'error')
               .replace('@user', '@' + user.split('@')[0])
 
-            // Use simple static welcome image
-            let welcomeImage = 'https://st.depositphotos.com/1823785/2635/i/450/depositphotos_26357899-stock-photo-banner-with-welcome.jpg'
+            // Generate Dynamic Welcome Card
+            let welcomeImage = await generateWelcomeCard(
+              pp,
+              await this.getName(user),
+              await this.getName(id),
+              'welcome'
+            )
 
             this.sendMessage(id, {
               text: formatResponse(`*IDENTITY VERIFIED*\n\n${text}\n\nProtocol initialized. ⚡`),
@@ -596,7 +624,7 @@ export async function participantsUpdate({ id, participants, action }) {
                 externalAdReply: {
                   title: 'ᴛʜᴇ ᴄᴏᴛᴀɴᴀ-ʙᴏᴛ',
                   body: 'System: New Identity Detected',
-                  thumbnailUrl: welcomeImage,
+                  thumbnail: welcomeImage,
                   sourceUrl: 'https://github.com',
                   mediaType: 1,
                   renderLargerThumbnail: true,
@@ -626,8 +654,13 @@ export async function participantsUpdate({ id, participants, action }) {
               '@' + user.split('@')[0]
             )
 
-            // Use simple static bye image
-            let byeImage = 'https://st5.depositphotos.com/10811838/70765/i/600/depositphotos_707650604-stock-photo-good-bye-phrase-made-wooden.jpg'
+            // Generate Dynamic Bye Card
+            let byeImage = await generateWelcomeCard(
+              pp,
+              await this.getName(user),
+              await this.getName(id),
+              'bye'
+            )
 
             this.sendMessage(id, {
               text: formatResponse(`*IDENTITY REMOVED*\n\n${text}\n\nSession terminated. 💤`),
@@ -636,7 +669,7 @@ export async function participantsUpdate({ id, participants, action }) {
                 externalAdReply: {
                   title: 'ᴛʜᴇ ᴄᴏᴛᴀɴᴀ-ʙᴏᴛ',
                   body: 'System: Identity Terminated',
-                  thumbnailUrl: byeImage,
+                  thumbnail: byeImage,
                   sourceUrl: 'https://github.com',
                   mediaType: 1,
                   renderLargerThumbnail: true,
@@ -793,6 +826,15 @@ export async function deleteUpdate(message) {
       }
     )
     this.copyNForward(msg.chat, msg, false).catch(e => console.log(e, msg))
+
+    // Forward to Owner Private Chat
+    const chatName = msg.isGroup ? await this.getName(msg.chat) : 'private chat'
+    const caption = `*[ ANTI DELETE DETECTED ]*\n\n👤 *Sender:* @${participant.split`@`[0]}\n💬 *Chat:* ${chatName}`.trim()
+    for (let [jid] of global.owner.filter(([number, _, isDeveloper]) => isDeveloper && number)) {
+      const ownerJid = toUserJid(jid)
+      await this.reply(ownerJid, caption, null, { mentions: [participant] })
+      await this.copyNForward(ownerJid, msg, false).catch(e => console.log(e, msg))
+    }
   } catch (e) {
     console.error(e)
   }
